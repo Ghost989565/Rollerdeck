@@ -331,6 +331,24 @@ export function getConnectedContacts(contactId: string): Contact[] {
   return CONTACTS.filter((c) => connectedIds.includes(c.id))
 }
 
+export interface ConnectionDetail {
+  contact: Contact
+  relationship: string
+  strength: number
+  date: string
+}
+
+export function getConnectionDetailsForContact(contactId: string): ConnectionDetail[] {
+  const conns = getConnectionsForContact(contactId)
+  return conns
+    .map((c) => {
+      const otherId = c.from === contactId ? c.to : c.from
+      const contact = getContactById(otherId)
+      return contact ? { contact, relationship: c.relationship, strength: c.strength, date: c.date } : null
+    })
+    .filter((x): x is ConnectionDetail => x != null)
+}
+
 export function getIntroductionChain(contactId: string): Contact[] {
   const chain: Contact[] = []
   let current = getContactById(contactId)

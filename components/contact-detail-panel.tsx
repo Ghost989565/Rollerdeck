@@ -1,8 +1,8 @@
 "use client"
 
-import { X, MapPin, Lightbulb, Target, Link2, Share2, ChevronRight, Globe, Lock, Users, Eye } from "lucide-react"
+import { X, MapPin, Lightbulb, Target, Share2, ChevronRight, Globe, Lock, Users, Eye, Network, User } from "lucide-react"
 import type { Contact } from "@/lib/data"
-import { getIntroductionChain, getConnectedContacts } from "@/lib/data"
+import { getIntroductionChain, getConnectedContacts, getConnectionDetailsForContact } from "@/lib/data"
 
 interface ContactDetailPanelProps {
   contact: Contact
@@ -21,6 +21,7 @@ const visibilityConfig = {
 export function ContactDetailPanel({ contact, onClose, onSelectContact, onShareContact, onExploreNetwork }: ContactDetailPanelProps) {
   const introChain = getIntroductionChain(contact.id)
   const connectedContacts = getConnectedContacts(contact.id)
+  const connectionDetails = getConnectionDetailsForContact(contact.id)
   const vis = visibilityConfig[contact.networkVisibility]
   const VisIcon = vis.icon
   const canExplore = contact.networkVisibility !== "private"
@@ -81,6 +82,73 @@ export function ContactDetailPanel({ contact, onClose, onSelectContact, onShareC
         </div>
       )}
 
+      {/* How you're connected (intro chain - like 23andMe path) */}
+      {(introChain.length > 0 || connectionDetails.length > 0) && (
+        <div className="px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Network className="w-4 h-4 text-primary" />
+            <h3 className="text-xs font-medium text-primary uppercase tracking-wider">Connection tree</h3>
+          </div>
+          {introChain.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">How you're connected</p>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary font-medium">
+                  <User className="w-3 h-3" />
+                  You
+                </span>
+                {/* Intro chain: root first (reverse), then contact */}
+                {[...introChain].reverse().map((person) => (
+                  <span key={person.id} className="flex items-center gap-1">
+                    <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <button
+                      type="button"
+                      onClick={() => onSelectContact(person.id)}
+                      className="px-2 py-1 rounded-md bg-secondary hover:bg-secondary/80 text-foreground hover:text-primary cursor-pointer font-medium transition-colors"
+                    >
+                      {person.name}
+                    </button>
+                  </span>
+                ))}
+                <span className="flex items-center gap-1">
+                  <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="px-2 py-1 rounded-md bg-primary/15 text-primary font-medium">{contact.name}</span>
+                </span>
+              </div>
+            </div>
+          )}
+          {connectionDetails.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                In their network ({connectionDetails.length})
+              </p>
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                {connectionDetails.map(({ contact: c, relationship, date }) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onSelectContact(c.id)}
+                    className="flex items-start gap-2 p-2 rounded-lg hover:bg-secondary border border-transparent hover:border-border text-left cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                      {c.initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                      <p className="text-xs text-primary/90 truncate">{relationship}</p>
+                      {date && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{date}</p>
+                      )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Big Idea */}
       <div className="px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">
@@ -126,46 +194,6 @@ export function ContactDetailPanel({ contact, onClose, onSelectContact, onShareC
           </div>
         </div>
       )}
-
-      {/* Introduction Chain */}
-      {introChain.length > 0 && (
-        <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <Link2 className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Introduction Chain</h3>
-          </div>
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-xs text-foreground font-medium">{contact.name}</span>
-            {introChain.map((person) => (
-              <div key={person.id} className="flex items-center gap-1">
-                <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                <button type="button" onClick={() => onSelectContact(person.id)} className="text-xs text-primary hover:underline cursor-pointer">{person.name}</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Connected Contacts */}
-      <div className="px-5 py-4 border-b border-border">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Connected to ({connectedContacts.length})</h3>
-        <div className="flex flex-col gap-1.5">
-          {connectedContacts.slice(0, 5).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onSelectContact(c.id)}
-              className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary transition-colors text-left cursor-pointer"
-            >
-              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">{c.initials}</div>
-              <div className="min-w-0">
-                <p className="text-sm text-foreground truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{c.title}, {c.company}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Share action */}
       <div className="px-5 py-4">

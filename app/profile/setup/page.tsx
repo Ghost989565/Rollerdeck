@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, Link2, Loader2, MapPin, Globe } from "lucide-react"
+import { Camera, Link2, Loader2, MapPin, Globe, Lightbulb, Target } from "lucide-react"
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const MAX_SIZE_MB = 2
@@ -35,6 +35,11 @@ export default function ProfileSetupPage() {
   const router = useRouter()
   const [name, setName] = useState("")
   const [bio, setBio] = useState("")
+  const [bigIdeaTitle, setBigIdeaTitle] = useState("")
+  const [bigIdeaDescription, setBigIdeaDescription] = useState("")
+  const [bigIdeaGoals, setBigIdeaGoals] = useState("")
+  const [valueProposition, setValueProposition] = useState("")
+  const [tags, setTags] = useState("")
   const [linkedinUrl, setLinkedinUrl] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [city, setCity] = useState("")
@@ -71,12 +76,17 @@ export default function ProfileSetupPage() {
         }
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, initials, bio, linkedin_url, avatar_url, city, country, lat, lng")
+          .select("name, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, linkedin_url, avatar_url, city, country, lat, lng")
           .eq("id", user.id)
           .single()
         if (mounted && profile) {
           setName(profile.name ?? "")
           setBio(profile.bio ?? "")
+          setBigIdeaTitle(profile.big_idea_title ?? "")
+          setBigIdeaDescription(profile.big_idea_description ?? "")
+          setBigIdeaGoals(profile.big_idea_goals ?? "")
+          setValueProposition(profile.value_proposition ?? "")
+          setTags(profile.tags ?? "")
           setLinkedinUrl(profile.linkedin_url ?? "")
           setAvatarUrl(profile.avatar_url ?? "")
           setCity(profile.city ?? "")
@@ -212,6 +222,11 @@ export default function ProfileSetupPage() {
             name: name.trim() || "",
             initials: initials || "U",
             bio: bio.trim() || "",
+            big_idea_title: bigIdeaTitle.trim() || "",
+            big_idea_description: bigIdeaDescription.trim() || "",
+            big_idea_goals: bigIdeaGoals.trim() || "",
+            value_proposition: valueProposition.trim() || "",
+            tags: tags.trim() || "",
             linkedin_url: linkedinUrl.trim() || "",
             avatar_url: finalAvatarUrl,
             city: city.trim() || "",
@@ -339,6 +354,82 @@ export default function ProfileSetupPage() {
               placeholder="A short intro others see on the map (e.g. what you do, what you’re looking for)"
               className="bg-card min-h-[88px] resize-y"
               rows={3}
+            />
+          </div>
+
+          {/* Big Idea */}
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-card/50 p-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium text-foreground">Big Idea</h3>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="big-idea-title" className="text-xs font-medium text-muted-foreground">
+                Title
+              </label>
+              <Input
+                id="big-idea-title"
+                value={bigIdeaTitle}
+                onChange={(e) => setBigIdeaTitle(e.target.value)}
+                placeholder="e.g. The Future of Professional Communities"
+                className="bg-card"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="big-idea-desc" className="text-xs font-medium text-muted-foreground">
+                Description
+              </label>
+              <Textarea
+                id="big-idea-desc"
+                value={bigIdeaDescription}
+                onChange={(e) => setBigIdeaDescription(e.target.value)}
+                placeholder="Reimagining how professionals connect, learn, and grow together..."
+                className="bg-card min-h-[72px] resize-y"
+                rows={2}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="big-idea-goals" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Target className="h-3.5 w-3.5" />
+                Key initiatives
+              </label>
+              <Textarea
+                id="big-idea-goals"
+                value={bigIdeaGoals}
+                onChange={(e) => setBigIdeaGoals(e.target.value)}
+                placeholder="One per line:&#10;Launch 20 new cohorts&#10;Build community platform&#10;Write the community playbook"
+                className="bg-card min-h-[80px] resize-y font-mono text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          {/* How they add value */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="value-prop" className="text-sm font-medium text-foreground">
+              How you add value
+            </label>
+            <Textarea
+              id="value-prop"
+              value={valueProposition}
+              onChange={(e) => setValueProposition(e.target.value)}
+              placeholder="e.g. Master networker who can connect you to exactly the right person. Expertise in community-led growth."
+              className="bg-card min-h-[72px] resize-y"
+              rows={2}
+            />
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="tags" className="text-sm font-medium text-foreground">
+              Tags
+            </label>
+            <Input
+              id="tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="e.g. community, education, creator (comma-separated)"
+              className="bg-card"
             />
           </div>
 

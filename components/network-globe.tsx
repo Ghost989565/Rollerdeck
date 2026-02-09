@@ -39,6 +39,7 @@ interface NetworkGlobeProps {
   exploringContact?: Contact | null
   onStopExploring?: () => void
   userLocation?: { lat: number; lng: number; name: string }
+  showUserConnectionLines?: boolean
 }
 
 export function NetworkGlobe({
@@ -50,6 +51,7 @@ export function NetworkGlobe({
   exploringContact = null,
   onStopExploring,
   userLocation,
+  showUserConnectionLines = true,
 }: NetworkGlobeProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -59,7 +61,6 @@ export function NetworkGlobe({
   const [rotation, setRotation] = useState([-40, -15])
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState([0, 0])
-  const [hoveredContactId, setHoveredContactId] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 })
   const rafRef = useRef<number | null>(null)
@@ -158,6 +159,7 @@ export function NetworkGlobe({
   const resetView = useCallback(() => {
     setRotation([-40, -15])
     setZoomLevel(1)
+    setProgress([0]) // Back to globe view (not unrolled map)
   }, [])
 
   useEffect(() => {
@@ -215,7 +217,7 @@ export function NetworkGlobe({
 
       const source: [number, number] = [fromContact.location.lng, fromContact.location.lat]
       const target: [number, number] = [toContact.location.lng, toContact.location.lat]
-      const isRelevant = selectedContactId === conn.from || selectedContactId === conn.to || hoveredContactId === conn.from || hoveredContactId === conn.to
+      const isRelevant = selectedContactId === conn.from || selectedContactId === conn.to
       const sourceProjected = projection(source)
       const targetProjected = projection(target)
       if (!sourceProjected || !targetProjected) return
@@ -245,6 +247,46 @@ export function NetworkGlobe({
         .attr("stroke-dasharray", isRelevant ? "none" : "2,3")
     })
 
+    // User-to-contact connection arcs: only one blue line from selected person to "You"
+    if (userLocation && showUserConnectionLines) {
+      const userCoords: [number, number] = [userLocation.lng, userLocation.lat]
+      const userProjected = projection(userCoords)
+      if (userProjected) {
+        const userIsSelected = selectedContactId === "me"
+        // When a contact is selected, show only the one blue line from that contact to me (not all my lines)
+        const contactsToDraw = userIsSelected
+          ? contacts
+          : selectedContactId
+            ? contacts.filter((c) => c.id === selectedContactId)
+            : contacts
+        contactsToDraw.forEach((contact) => {
+          const target: [number, number] = [contact.location.lng, contact.location.lat]
+          const targetProjected = projection(target)
+          if (!targetProjected) return
+          if (t < 0.5) {
+            const gd1 = d3.geoDistance(userCoords, [-rotation[0], -rotation[1]])
+            const gd2 = d3.geoDistance(target, [-rotation[0], -rotation[1]])
+            if (gd1 > Math.PI / 2 && gd2 > Math.PI / 2) return
+          }
+          const interpolate = d3.geoInterpolate(userCoords, target)
+          const arcPoints: [number, number][] = []
+          for (let i = 0; i <= 30; i++) arcPoints.push(interpolate(i / 30) as [number, number])
+          const lineGenerator = d3.line<[number, number]>()
+            .x((d) => { const p = projection(d); return p ? p[0] : 0 })
+            .y((d) => { const p = projection(d); return p ? p[1] : 0 })
+            .curve(d3.curveBasis)
+          const arcPath = lineGenerator(arcPoints)
+          if (!arcPath) return
+          const isRelevant = userIsSelected || selectedContactId === contact.id
+          connectionLayer.append("path").attr("d", arcPath).attr("fill", "none")
+            .attr("stroke", isRelevant ? "#3B82F6" : "rgba(59, 130, 246, 0.25)")
+            .attr("stroke-width", isRelevant ? 1.5 : 0.5)
+            .attr("opacity", isRelevant ? 0.6 : 0.12)
+            .attr("stroke-dasharray", isRelevant ? "none" : "3,4")
+        })
+      }
+    }
+
     // Contact nodes
     const nodeLayer = svg.append("g").attr("class", "nodes")
     contacts.forEach((contact) => {
@@ -258,17 +300,14 @@ export function NetworkGlobe({
       }
 
       const isSelected = selectedContactId === contact.id
-      const isHovered = hoveredContactId === contact.id
       const isHighlighted = highlightedIds.includes(contact.id)
-      const isActive = isSelected || isHovered || isHighlighted
+      const isActive = isSelected || isHighlighted
       const nodeColor = isSelected ? "#34D399" : isActive ? "#E8A838" : "#ffffff"
 
       const group = nodeLayer.append("g")
         .attr("transform", `translate(${projected[0]}, ${projected[1]})`)
         .attr("cursor", "pointer")
         .on("click", () => onSelectContact(contact.id))
-        .on("mouseenter", () => setHoveredContactId(contact.id))
-        .on("mouseleave", () => setHoveredContactId(null))
 
       if (isActive) {
         group.append("circle").attr("r", 14).attr("fill", nodeColor).attr("opacity", 0.12)
@@ -301,15 +340,23 @@ export function NetworkGlobe({
           if (geoDistance > Math.PI / 2) showUser = false
         }
         if (showUser) {
+          const isSelected = selectedContactId === "me"
           const userGroup = nodeLayer.append("g")
             .attr("transform", `translate(${userProjected[0]}, ${userProjected[1]})`)
+            .attr("cursor", "pointer")
+            .style("pointer-events", "all")
+            .on("click", () => onSelectContact("me"))
 
+          // Selected ring when "me" is selected
+          if (isSelected) {
+            userGroup.append("circle").attr("r", 22).attr("fill", "none").attr("stroke", "#3B82F6").attr("stroke-width", 2).attr("opacity", 0.6)
+          }
           // Outer pulse ring
-          userGroup.append("circle").attr("r", 18).attr("fill", "#3B82F6").attr("opacity", 0.08)
+          userGroup.append("circle").attr("r", 18).attr("fill", "#3B82F6").attr("opacity", isSelected ? 0.2 : 0.08)
           // Mid ring
-          userGroup.append("circle").attr("r", 11).attr("fill", "#3B82F6").attr("opacity", 0.15)
+          userGroup.append("circle").attr("r", 11).attr("fill", "#3B82F6").attr("opacity", isSelected ? 0.25 : 0.15)
           // Core dot
-          userGroup.append("circle").attr("r", 6).attr("fill", "#3B82F6").attr("stroke", "#93C5FD").attr("stroke-width", 2)
+          userGroup.append("circle").attr("r", isSelected ? 8 : 6).attr("fill", "#3B82F6").attr("stroke", "#93C5FD").attr("stroke-width", isSelected ? 2.5 : 2)
           // Label
           userGroup.append("text").attr("x", 12).attr("y", 4)
             .attr("font-size", "10px")
@@ -321,7 +368,7 @@ export function NetworkGlobe({
       }
     }
 
-  }, [worldData, progress, rotation, contacts, connections, selectedContactId, hoveredContactId, highlightedIds, onSelectContact, width, height, zoomLevel, userLocation])
+  }, [worldData, progress, rotation, contacts, connections, selectedContactId, highlightedIds, onSelectContact, width, height, zoomLevel, userLocation, showUserConnectionLines])
 
   const handleAnimate = useCallback(() => {
     if (isAnimating) return

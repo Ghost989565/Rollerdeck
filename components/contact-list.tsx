@@ -136,6 +136,27 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
       {/* Contact cards */}
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col gap-1 p-2">
+          {/* You / Your profile - opens your tree */}
+          <button
+            type="button"
+            onClick={() => onSelectContact("me")}
+            className={`flex items-start gap-3 p-3 rounded-lg text-left cursor-pointer transition-colors border ${
+              selectedContactId === "me"
+                ? "bg-primary/10 border-primary/20"
+                : "hover:bg-secondary border-border hover:border-primary/20"
+            }`}
+          >
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 text-sm font-semibold ${
+              selectedContactId === "me" ? "bg-primary text-primary-foreground" : "bg-blue-500/20 text-blue-400"
+            }`}>
+              You
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium truncate ${selectedContactId === "me" ? "text-primary" : "text-foreground"}`}>You</p>
+              <p className="text-xs text-muted-foreground truncate">Your profile &amp; network tree</p>
+            </div>
+          </button>
+
           {filteredContacts.map((contact) => {
             const isSelected = contact.id === selectedContactId
             return (

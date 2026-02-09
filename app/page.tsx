@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { NetworkGlobe } from "@/components/network-globe"
 import { ConnectionGraph } from "@/components/connection-graph"
 import { ContactDetailPanel } from "@/components/contact-detail-panel"
+import { MyProfilePanel } from "@/components/my-profile-panel"
 import { ContactList } from "@/components/contact-list"
 import { ShareCardDialog } from "@/components/share-card-dialog"
 import { GlimmeringIntro, useHasSeenIntro } from "@/components/glimmering-intro"
@@ -34,6 +35,7 @@ function RollerDeckApp() {
   const [shareContact, setShareContact] = useState<Contact | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [exploringContact, setExploringContact] = useState<Contact | null>(null)
+  const [showUserConnections, setShowUserConnections] = useState(true)
   const [userLocation, setUserLocation] = useState(DEFAULT_USER_LOCATION)
 
   useEffect(() => {
@@ -64,9 +66,10 @@ function RollerDeckApp() {
   }, [])
 
   const selectedContact = useMemo(
-    () => CONTACTS.find((c) => c.id === selectedContactId) ?? null,
+    () => (selectedContactId && selectedContactId !== "me" ? CONTACTS.find((c) => c.id === selectedContactId) ?? null : null),
     [selectedContactId]
   )
+  const viewingMe = selectedContactId === "me"
 
   // When exploring someone's network, show their contacts + connections
   const visibleContacts = useMemo(() => {
@@ -96,8 +99,9 @@ function RollerDeckApp() {
 
   const highlightedIds = useMemo(() => {
     if (!selectedContactId) return []
+    if (selectedContactId === "me") return visibleContacts.map((c) => c.id)
     return getConnectedContacts(selectedContactId).map((c) => c.id)
-  }, [selectedContactId])
+  }, [selectedContactId, visibleContacts])
 
   const handleExploreNetwork = useCallback((contact: Contact) => {
     if (contact.networkVisibility === "private") return
@@ -116,6 +120,11 @@ function RollerDeckApp() {
     setExploringContact((prev) => (prev ? null : prev))
   }, [])
 
+  // Click same person again to deselect (clear connection lines)
+  const handleSelectContact = useCallback((id: string) => {
+    setSelectedContactId((prev) => (prev === id ? null : id))
+  }, [])
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <AppSidebar
@@ -124,6 +133,8 @@ function RollerDeckApp() {
         contactCount={CONTACTS.length}
         onSearch={setSearchQuery}
         searchQuery={searchQuery}
+        showUserConnections={showUserConnections}
+        onShowUserConnectionsChange={setShowUserConnections}
       />
 
       {/* Main content */}
@@ -149,12 +160,12 @@ function RollerDeckApp() {
                 }
               </p>
             </div>
-            {selectedContact && (
+            {(selectedContact || viewingMe) && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                  {selectedContact.initials}
+                  {viewingMe ? "You" : selectedContact?.initials}
                 </div>
-                <span className="text-xs font-medium text-primary">{selectedContact.name}</span>
+                <span className="text-xs font-medium text-primary">{viewingMe ? "You" : selectedContact?.name}</span>
                 <button
                   type="button"
                   onClick={() => setSelectedContactId(null)}
@@ -175,18 +186,19 @@ function RollerDeckApp() {
                 contacts={visibleContacts}
                 connections={visibleConnections}
                 selectedContactId={selectedContactId}
-                onSelectContact={setSelectedContactId}
+                onSelectContact={handleSelectContact}
                 highlightedIds={highlightedIds}
                 exploringContact={exploringContact}
                 onStopExploring={handleStopExploring}
                 userLocation={userLocation}
+                showUserConnectionLines={showUserConnections}
               />
             )}
             {activeView === "contacts" && (
               <ContactList
                 contacts={visibleContacts}
                 selectedContactId={selectedContactId}
-                onSelectContact={setSelectedContactId}
+                onSelectContact={handleSelectContact}
               />
             )}
             {activeView === "graph" && (
@@ -194,18 +206,26 @@ function RollerDeckApp() {
                 contacts={visibleContacts}
                 connections={visibleConnections}
                 selectedContactId={selectedContactId}
-                onSelectContact={setSelectedContactId}
+                onSelectContact={handleSelectContact}
+                showUserNode={showUserConnections}
               />
             )}
           </div>
         </div>
 
         {/* Detail panel */}
+        {viewingMe && (
+          <MyProfilePanel
+            onClose={() => setSelectedContactId(null)}
+            onSelectContact={handleSelectContact}
+            contacts={visibleContacts}
+          />
+        )}
         {selectedContact && (
           <ContactDetailPanel
             contact={selectedContact}
             onClose={() => setSelectedContactId(null)}
-            onSelectContact={setSelectedContactId}
+            onSelectContact={handleSelectContact}
             onShareContact={setShareContact}
             onExploreNetwork={handleExploreNetwork}
           />

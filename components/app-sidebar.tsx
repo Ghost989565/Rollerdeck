@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Globe, Users, Network, Search, Sparkles, Settings, Lock, ChevronDown, ChevronUp, User } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
 
 interface AppSidebarProps {
   activeView: string
@@ -11,6 +12,8 @@ interface AppSidebarProps {
   contactCount: number
   onSearch: (query: string) => void
   searchQuery: string
+  showUserConnections?: boolean
+  onShowUserConnectionsChange?: (show: boolean) => void
 }
 
 const navItems = [
@@ -25,7 +28,7 @@ const visibilityOptions = [
   { value: "private" as const, label: "Private", description: "Nobody can see your network", icon: Lock },
 ]
 
-export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, searchQuery }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, searchQuery, showUserConnections = true, onShowUserConnectionsChange }: AppSidebarProps) {
   const [showSettings, setShowSettings] = useState(false)
   const [myVisibility, setMyVisibility] = useState<"public" | "friends" | "private">("public")
 
@@ -80,6 +83,20 @@ export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, s
           )
         })}
       </nav>
+
+      {/* Show my connections - always visible */}
+      {onShowUserConnectionsChange != null && (
+        <div className="px-3 py-2 border-t border-border">
+          <div className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-secondary">
+            <span className="text-xs font-medium text-foreground">Show my connections</span>
+            <Switch
+              checked={showUserConnections}
+              onCheckedChange={onShowUserConnectionsChange}
+              aria-label="Show my connections on map and graph"
+            />
+          </div>
+        </div>
+      )}
 
       {/* My Network Settings */}
       <div className="px-3 py-2 border-t border-border">
