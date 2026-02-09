@@ -1,0 +1,18 @@
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
+  initials TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT '',
+  company TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT '',
+  lat DOUBLE PRECISION NOT NULL DEFAULT 0,
+  lng DOUBLE PRECISION NOT NULL DEFAULT 0,
+  big_idea_title TEXT NOT NULL DEFAULT '',
+  big_idea_description TEXT NOT NULL DEFAULT '',
+  value_proposition TEXT NOT NULL DEFAULT '',
+  network_visibility TEXT NOT NULL DEFAULT 'friends',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
