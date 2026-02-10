@@ -92,10 +92,8 @@ function RollerDeckApp() {
 
       const mappedProfiles = mapProfilesToContacts(finalProfiles ?? [])
       const networkContacts = mappedProfiles.filter((c) => c.id !== user.id)
-      if (networkContacts.length) {
-        setContacts(networkContacts)
-        setContactDataSource("supabase")
-      }
+      setContacts(networkContacts)
+      setContactDataSource("supabase")
 
       const { data: profileConnections, error: connectionsError } = await supabase
         .from("profile_connections")
@@ -116,6 +114,8 @@ function RollerDeckApp() {
         setConnections(mappedConnections)
       } else if (networkContacts.length) {
         setConnections(buildConnectionsFromContacts(networkContacts))
+      } else {
+        setConnections([])
       }
 
       const { data: requests, error: requestError } = await supabase
