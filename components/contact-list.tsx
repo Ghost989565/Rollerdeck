@@ -3,15 +3,22 @@
 import { useState, useMemo } from "react"
 import { Search, Filter, X } from "lucide-react"
 import type { Contact } from "@/lib/data"
-import { ALL_TAGS, ALL_CIRCLES } from "@/lib/data"
 
 interface ContactListProps {
   contacts: Contact[]
   selectedContactId: string | null
   onSelectContact: (id: string) => void
+  availableTags: string[]
+  availableCircles: string[]
 }
 
-export function ContactList({ contacts, selectedContactId, onSelectContact }: ContactListProps) {
+export function ContactList({
+  contacts,
+  selectedContactId,
+  onSelectContact,
+  availableTags,
+  availableCircles,
+}: ContactListProps) {
   const [search, setSearch] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -79,7 +86,7 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
           <div className="mb-3">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</h4>
             <div className="flex flex-wrap gap-1.5">
-              {ALL_TAGS.map((tag) => (
+              {availableTags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -99,7 +106,7 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
           <div>
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Circles</h4>
             <div className="flex flex-wrap gap-1.5">
-              {ALL_CIRCLES.map((circle) => (
+              {availableCircles.map((circle) => (
                 <button
                   key={circle}
                   type="button"

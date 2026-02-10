@@ -5,11 +5,10 @@ import React from "react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -17,11 +16,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (searchParams.get("reset") === "success") {
+    const params = new URLSearchParams(window.location.search)
+
+    if (params.get("reset") === "success") {
       setSuccess("Your password has been updated. Sign in with your new password.")
       router.replace("/auth/login", { scroll: false })
+      return
     }
-  }, [searchParams, router])
+
+    const errorParam = params.get("error")
+    if (errorParam) {
+      const callbackErrors: Record<string, string> = {
+        missing_code: "Sign-in link is incomplete. Please request a new link.",
+        callback_exchange_failed: "Sign-in link is invalid or expired. Please request a new link.",
+        no_user_session: "Could not establish a session. Please sign in again.",
+        callback_failed: "Could not complete sign-in. Please try again.",
+      }
+      const mapped = callbackErrors[errorParam] || "Authentication failed. Please try again."
+      setError(mapped)
+      router.replace("/auth/login", { scroll: false })
+    }
+  }, [router])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
