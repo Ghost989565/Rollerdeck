@@ -6,6 +6,7 @@ import type { Contact, Connection } from "@/lib/data"
 import { createClient } from "@/lib/supabase/client"
 import {
   buildConnectionsFromContacts,
+  ConnectionRequest,
   getAllCircles,
   getAllTags,
   getConnectedContacts,
@@ -19,6 +20,7 @@ import { ContactDetailPanel } from "@/components/contact-detail-panel"
 import { MyProfilePanel } from "@/components/my-profile-panel"
 import { ContactList } from "@/components/contact-list"
 import { ShareCardDialog } from "@/components/share-card-dialog"
+import { AddConnectionDialog } from "@/components/add-connection-dialog"
 import { GlimmeringIntro, useHasSeenIntro } from "@/components/glimmering-intro"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -52,34 +54,73 @@ function RollerDeckApp() {
   const [showUserConnections, setShowUserConnections] = useState(true)
   const [userLocation, setUserLocation] = useState(DEFAULT_USER_LOCATION)
   const [contactDataSource, setContactDataSource] = useState<"demo" | "supabase">("demo")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([])
+  const [showAddConnection, setShowAddConnection] = useState(false)
 
-  useEffect(() => {
-    let mounted = true
-    async function loadContactsFromSupabase() {
-      try {
-        const supabase = createClient()
-        const { data: profiles, error } = await supabase
-          .from("profiles")
-          .select("id, name, initials, title, company, email, city, country, lat, lng, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, network_visibility, created_at")
-          .order("created_at", { ascending: true })
+  const refreshNetworkData = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-        if (!mounted || error || !profiles?.length) return
-
-        const mapped = mapProfilesToContacts(profiles)
-        if (!mapped.length) return
-
-        setContacts(mapped)
-        setConnections(buildConnectionsFromContacts(mapped))
-        setContactDataSource("supabase")
-      } catch {
-        // Keep demo data.
+      if (!user) {
+        setCurrentUserId(null)
+        setPendingRequests([])
+        return
       }
-    }
-    loadContactsFromSupabase()
-    return () => {
-      mounted = false
+
+      setCurrentUserId(user.id)
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, username, initials, title, company, email, city, country, lat, lng, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, network_visibility, created_at")
+        .order("created_at", { ascending: true })
+      if (profilesError) throw profilesError
+
+      const mappedProfiles = mapProfilesToContacts(profiles ?? [])
+      if (mappedProfiles.length) {
+        setContacts(mappedProfiles)
+        setContactDataSource("supabase")
+      }
+
+      const { data: profileConnections, error: connectionsError } = await supabase
+        .from("profile_connections")
+        .select("id, user_a, user_b, created_at")
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+      if (connectionsError) throw connectionsError
+
+      const mappedConnections: Connection[] = (profileConnections ?? []).map((c) => ({
+        id: c.id,
+        from: c.user_a,
+        to: c.user_b,
+        relationship: "Connected on RollerDeck",
+        strength: 4,
+        date: c.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      }))
+
+      if (mappedConnections.length) {
+        setConnections(mappedConnections)
+      } else if (mappedProfiles.length) {
+        setConnections(buildConnectionsFromContacts(mappedProfiles))
+      }
+
+      const { data: requests, error: requestError } = await supabase
+        .from("connection_requests")
+        .select("id, from_user_id, to_user_id, status, created_at")
+        .eq("status", "pending")
+        .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+      if (requestError) throw requestError
+      setPendingRequests((requests ?? []) as ConnectionRequest[])
+    } catch {
+      // Keep existing in-memory data.
     }
   }, [])
+
+  useEffect(() => {
+    void refreshNetworkData()
+  }, [refreshNetworkData])
 
   useEffect(() => {
     let mounted = true
@@ -186,6 +227,7 @@ function RollerDeckApp() {
           contactCount={contacts.length}
           onSearch={setSearchQuery}
           searchQuery={searchQuery}
+          onAddConnection={() => setShowAddConnection(true)}
           showUserConnections={showUserConnections}
           onShowUserConnectionsChange={setShowUserConnections}
         />
@@ -202,6 +244,10 @@ function RollerDeckApp() {
               contactCount={contacts.length}
               onSearch={setSearchQuery}
               searchQuery={searchQuery}
+              onAddConnection={() => {
+                setShowAddConnection(true)
+                setSidebarOpen(false)
+              }}
               showUserConnections={showUserConnections}
               onShowUserConnectionsChange={setShowUserConnections}
             />
@@ -242,6 +288,15 @@ function RollerDeckApp() {
                 {!exploringContact && contactDataSource === "supabase" ? " • Synced from Supabase" : ""}
               </p>
             </div>
+            {currentUserId && (
+              <button
+                type="button"
+                onClick={() => setShowAddConnection(true)}
+                className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
+              >
+                Add Connection
+              </button>
+            )}
             {(selectedContact || viewingMe) && (
               <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold shrink-0">
@@ -325,6 +380,16 @@ function RollerDeckApp() {
           contact={shareContact}
           recipientsPool={contacts}
           onClose={() => setShareContact(null)}
+        />
+      )}
+      {showAddConnection && currentUserId && (
+        <AddConnectionDialog
+          currentUserId={currentUserId}
+          contacts={contacts}
+          existingConnections={connections}
+          pendingRequests={pendingRequests}
+          onClose={() => setShowAddConnection(false)}
+          onNetworkUpdated={refreshNetworkData}
         />
       )}
     </div>

@@ -14,6 +14,7 @@ interface AppSidebarProps {
   contactCount: number
   onSearch: (query: string) => void
   searchQuery: string
+  onAddConnection?: () => void
   showUserConnections?: boolean
   onShowUserConnectionsChange?: (show: boolean) => void
 }
@@ -30,7 +31,7 @@ const visibilityOptions = [
   { value: "private" as const, label: "Private", description: "Nobody can see your network", icon: Lock },
 ]
 
-export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, searchQuery, showUserConnections = true, onShowUserConnectionsChange }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, searchQuery, onAddConnection, showUserConnections = true, onShowUserConnectionsChange }: AppSidebarProps) {
   const router = useRouter()
   const [showSettings, setShowSettings] = useState(false)
   const [myVisibility, setMyVisibility] = useState<"public" | "friends" | "private">("public")
@@ -124,6 +125,16 @@ export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, s
 
       {/* Navigation */}
       <nav className="flex flex-col gap-0.5 px-3 py-2 flex-1">
+        {onAddConnection && (
+          <button
+            type="button"
+            onClick={onAddConnection}
+            className="mb-2 flex items-center justify-center gap-2 px-2.5 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 cursor-pointer"
+          >
+            <User className="w-3.5 h-3.5" />
+            Add Connection
+          </button>
+        )}
         <p className="px-2 pb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Views</p>
         {navItems.map((item) => {
           const Icon = item.icon

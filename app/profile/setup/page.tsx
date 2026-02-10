@@ -34,6 +34,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<{ city: string;
 export default function ProfileSetupPage() {
   const router = useRouter()
   const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
   const [bio, setBio] = useState("")
   const [bigIdeaTitle, setBigIdeaTitle] = useState("")
   const [bigIdeaDescription, setBigIdeaDescription] = useState("")
@@ -76,11 +77,12 @@ export default function ProfileSetupPage() {
         }
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, linkedin_url, avatar_url, city, country, lat, lng")
+          .select("name, username, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, linkedin_url, avatar_url, city, country, lat, lng")
           .eq("id", user.id)
           .single()
         if (mounted && profile) {
           setName(profile.name ?? "")
+          setUsername(profile.username ?? "")
           setBio(profile.bio ?? "")
           setBigIdeaTitle(profile.big_idea_title ?? "")
           setBigIdeaDescription(profile.big_idea_description ?? "")
@@ -213,6 +215,12 @@ export default function ProfileSetupPage() {
       const initials = name.trim()
         ? name.trim().split(/\s+/).map((s) => s[0]).join("").toUpperCase().slice(0, 2)
         : "U"
+      const normalizedUsername = username.trim().replace(/^@+/, "").toLowerCase()
+      if (normalizedUsername && !/^[a-z0-9_]{3,24}$/.test(normalizedUsername)) {
+        setError("Username must be 3-24 characters and use only letters, numbers, or underscores.")
+        setLoading(false)
+        return
+      }
 
       const { error: updateError } = await supabase
         .from("profiles")
@@ -220,6 +228,7 @@ export default function ProfileSetupPage() {
           {
             id: user.id,
             name: name.trim() || "",
+            username: normalizedUsername || "",
             initials: initials || "U",
             bio: bio.trim() || "",
             big_idea_title: bigIdeaTitle.trim() || "",
@@ -340,6 +349,24 @@ export default function ProfileSetupPage() {
               placeholder="Your name"
               className="bg-card"
             />
+          </div>
+
+          {/* Username */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="username" className="text-sm font-medium text-foreground">
+              Username
+            </label>
+            <Input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. maya_chen"
+              className="bg-card"
+            />
+            <p className="text-xs text-muted-foreground">
+              People can search this if your profile is private.
+            </p>
           </div>
 
           {/* Bio */}

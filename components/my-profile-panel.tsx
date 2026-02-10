@@ -15,6 +15,7 @@ interface MyProfilePanelProps {
 export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfilePanelProps) {
   const [profile, setProfile] = useState<{
     name: string
+    username: string
     initials: string
     bio: string
     big_idea_title: string
@@ -41,12 +42,13 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
         }
         const { data } = await supabase
           .from("profiles")
-          .select("name, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, avatar_url, city, country, linkedin_url")
+          .select("name, username, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, avatar_url, city, country, linkedin_url")
           .eq("id", user.id)
           .single()
         if (mounted && data) {
           setProfile({
             name: data.name ?? "You",
+            username: data.username ?? "",
             initials: data.initials ?? "U",
             bio: data.bio ?? "",
             big_idea_title: data.big_idea_title ?? "",
@@ -62,6 +64,7 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
         } else if (mounted) {
           setProfile({
             name: "You",
+            username: "",
             initials: "U",
             bio: "",
             big_idea_title: "",
@@ -76,7 +79,7 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
           })
         }
       } catch {
-        if (mounted) setProfile({ name: "You", initials: "U", bio: "", big_idea_title: "", big_idea_description: "", big_idea_goals: "", value_proposition: "", tags: "", avatar_url: "", city: "", country: "", linkedin_url: "" })
+        if (mounted) setProfile({ name: "You", username: "", initials: "U", bio: "", big_idea_title: "", big_idea_description: "", big_idea_goals: "", value_proposition: "", tags: "", avatar_url: "", city: "", country: "", linkedin_url: "" })
       } finally {
         if (mounted) setLoading(false)
       }
@@ -116,6 +119,7 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-foreground truncate">{displayName}</h2>
             <p className="text-sm text-primary">Your profile</p>
+            {profile?.username?.trim() && <p className="text-xs text-muted-foreground truncate">@{profile.username}</p>}
           </div>
         </div>
         <button type="button" onClick={onClose} className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 -mr-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer touch-manipulation shrink-0" aria-label="Close">

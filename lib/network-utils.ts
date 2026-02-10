@@ -3,6 +3,7 @@ import type { Contact, Connection } from "@/lib/data"
 interface ProfileRow {
   id: string
   name: string | null
+  username: string | null
   initials: string | null
   title: string | null
   company: string | null
@@ -56,6 +57,7 @@ export function mapProfilesToContacts(rows: ProfileRow[]): Contact[] {
     return {
       id: row.id,
       name: name || "Unnamed",
+      username: (row.username ?? "").trim() || undefined,
       initials: (row.initials ?? "").trim() || computeInitials(name),
       title: (row.title ?? "").trim() || "Member",
       company: (row.company ?? "").trim() || "RollerDeck",
@@ -177,4 +179,12 @@ export function getAllTags(contacts: Contact[]) {
 
 export function getAllCircles(contacts: Contact[]) {
   return [...new Set(contacts.flatMap((c) => c.circles).filter(Boolean))].sort()
+}
+
+export interface ConnectionRequest {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  status: "pending" | "accepted" | "rejected" | "canceled"
+  created_at: string
 }
