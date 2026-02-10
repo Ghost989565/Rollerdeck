@@ -111,7 +111,7 @@ export function GlimmeringIntro({ onEnter }: GlimmeringIntroProps) {
         <Button
           size="lg"
           onClick={onEnter}
-          className="min-w-[200px] bg-primary text-primary-foreground hover:bg-primary/90"
+          className="min-w-[200px] min-h-[48px] px-6 py-3 text-base bg-primary text-primary-foreground hover:bg-primary/90 touch-manipulation"
         >
           Enter your network
         </Button>

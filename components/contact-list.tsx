@@ -65,7 +65,7 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
         <button
           type="button"
           onClick={() => setShowFilters(!showFilters)}
-          className={`p-2 rounded-md border border-border cursor-pointer transition-colors ${
+          className={`flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-md border border-border cursor-pointer transition-colors touch-manipulation ${
             hasActiveFilters ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
           }`}
         >
@@ -135,12 +135,12 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
 
       {/* Contact cards */}
       <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-1 p-2">
+        <div className="flex flex-col gap-1 p-2 sm:p-2">
           {/* You / Your profile - opens your tree */}
           <button
             type="button"
             onClick={() => onSelectContact("me")}
-            className={`flex items-start gap-3 p-3 rounded-lg text-left cursor-pointer transition-colors border ${
+            className={`flex items-start gap-3 p-3 min-h-[52px] sm:min-h-0 rounded-lg text-left cursor-pointer transition-colors border touch-manipulation ${
               selectedContactId === "me"
                 ? "bg-primary/10 border-primary/20"
                 : "hover:bg-secondary border-border hover:border-primary/20"
@@ -164,7 +164,7 @@ export function ContactList({ contacts, selectedContactId, onSelectContact }: Co
                 key={contact.id}
                 type="button"
                 onClick={() => onSelectContact(contact.id)}
-                className={`flex items-start gap-3 p-3 rounded-lg text-left cursor-pointer transition-colors ${
+                className={`flex items-start gap-3 p-3 min-h-[52px] sm:min-h-0 rounded-lg text-left cursor-pointer transition-colors touch-manipulation ${
                   isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-secondary border border-transparent"
                 }`}
               >

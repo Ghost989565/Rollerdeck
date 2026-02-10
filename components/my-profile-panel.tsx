@@ -87,7 +87,7 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
 
   if (loading) {
     return (
-      <div className="flex w-96 shrink-0 flex-col items-center justify-center border-l border-border bg-card p-8">
+      <div className="flex w-full md:w-96 shrink-0 flex-col items-center justify-center border-l border-border bg-card p-8 fixed inset-0 z-40 md:relative md:inset-auto">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -98,28 +98,28 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
   const location = [profile?.city, profile?.country].filter(Boolean).join(", ")
 
   return (
-    <div className="flex flex-col w-96 border-l border-border bg-card shrink-0 overflow-y-auto">
+    <div className="flex flex-col w-full md:w-96 border-l border-border bg-card shrink-0 overflow-y-auto fixed inset-0 z-40 md:relative md:z-auto md:inset-auto safe-area-panel">
       {/* Header */}
-      <div className="flex items-start justify-between p-5 border-b border-border">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between p-4 sm:p-5 border-b border-border shrink-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
               alt=""
-              className="h-12 w-12 rounded-full object-cover"
+              className="h-12 w-12 rounded-full object-cover shrink-0"
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary font-semibold text-lg">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary font-semibold text-lg shrink-0">
               {displayInitials}
             </div>
           )}
-          <div>
-            <h2 className="text-base font-semibold text-foreground">{displayName}</h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground truncate">{displayName}</h2>
             <p className="text-sm text-primary">Your profile</p>
           </div>
         </div>
-        <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-secondary text-muted-foreground cursor-pointer">
-          <X className="w-4 h-4" />
+        <button type="button" onClick={onClose} className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 -mr-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer touch-manipulation shrink-0" aria-label="Close">
+          <X className="w-5 h-5" />
         </button>
       </div>
 

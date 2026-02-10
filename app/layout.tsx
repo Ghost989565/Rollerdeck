@@ -1,5 +1,5 @@
 import React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 
@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   title: "RollerDeck - Map Your Network",
   description:
     "A digital network management app that reimagines how people connect and collaborate.",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "RollerDeck" },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: "#0d0d0d",
 }
 
 export default function RootLayout({
@@ -17,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+    <html lang="en" className="touch-pan-y">
+      <body className={`${inter.variable} font-sans antialiased min-h-[100dvh] overscroll-none`}>
         {children}
       </body>
     </html>

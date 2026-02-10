@@ -142,6 +142,55 @@ export function NetworkGlobe({
 
   const handleMouseUp = () => setIsDragging(false)
 
+  const getPos = useCallback((clientX: number, clientY: number): [number, number] | null => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    return [clientX - rect.left, clientY - rect.top]
+  }, [])
+
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent) => {
+      if (event.touches.length !== 1) return
+      setIsDragging(true)
+      const pos = getPos(event.touches[0].clientX, event.touches[0].clientY)
+      if (pos) {
+        setLastMouse(pos)
+        lastMouseRef.current = pos
+      }
+    },
+    [getPos]
+  )
+
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent) => {
+      if (!isDragging || event.touches.length !== 1) return
+      event.preventDefault()
+      const pos = getPos(event.touches[0].clientX, event.touches[0].clientY)
+      if (!pos) return
+      const [lx, ly] = lastMouseRef.current
+      const dx = pos[0] - lx
+      const dy = pos[1] - ly
+      const sensitivity = progress[0] < 50 ? 0.5 : 0.25
+      const [r0, r1] = rotationRef.current
+      const nextRotation: [number, number] = [
+        r0 + dx * sensitivity,
+        Math.max(-90, Math.min(90, r1 - dy * sensitivity)),
+      ]
+      lastMouseRef.current = pos
+      rotationRef.current = nextRotation
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null
+          setRotation(rotationRef.current)
+          setLastMouse(lastMouseRef.current)
+        })
+      }
+    },
+    [isDragging, progress, getPos]
+  )
+
+  const handleTouchEnd = useCallback(() => setIsDragging(false), [])
+
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault()
     const delta = event.deltaY > 0 ? -0.1 : 0.1
@@ -391,27 +440,32 @@ export function NetworkGlobe({
   const isGlobe = progress[0] < 50
 
   return (
-    <div ref={containerRef} className="relative flex flex-col w-full h-full">
+    <div ref={containerRef} className="relative flex flex-col w-full h-full touch-none select-none">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
+        className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
         preserveAspectRatio="xMidYMid meet"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         onWheel={handleWheel}
+        style={{ touchAction: "none" }}
       />
-      {/* Zoom controls - vertical stack on the right */}
-      <div className="absolute top-4 right-4 flex flex-col gap-1 z-10">
+      {/* Zoom controls - vertical stack on the right, touch-friendly on mobile */}
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-1 z-10">
         <button
           type="button"
           onClick={zoomIn}
-          className="flex items-center justify-center w-8 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary cursor-pointer transition-colors"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-10 h-10 sm:w-8 sm:h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary cursor-pointer transition-colors touch-manipulation"
           aria-label="Zoom in"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
         <div className="flex items-center justify-center w-8 h-5 text-[10px] text-muted-foreground font-mono">
           {Math.round(zoomLevel * 100)}%
@@ -419,45 +473,45 @@ export function NetworkGlobe({
         <button
           type="button"
           onClick={zoomOut}
-          className="flex items-center justify-center w-8 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary cursor-pointer transition-colors"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-10 h-10 sm:w-8 sm:h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary cursor-pointer transition-colors touch-manipulation"
           aria-label="Zoom out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
-      {/* Bottom controls */}
-      <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+      {/* Bottom controls - touch-friendly on mobile */}
+      <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex flex-wrap gap-2 z-10">
         <button
           type="button"
           onClick={handleAnimate}
           disabled={isAnimating}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer transition-colors"
+          className="flex items-center justify-center gap-1.5 min-h-[44px] px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer transition-colors touch-manipulation"
         >
-          {isGlobe ? <><Map className="w-3.5 h-3.5" /> Unroll to Map</> : <><Globe className="w-3.5 h-3.5" /> Roll to Globe</>}
+          {isGlobe ? <><Map className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Unroll to Map</> : <><Globe className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Roll to Globe</>}
         </button>
         <button
           type="button"
           onClick={resetView}
-          className="px-3 py-1.5 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
+          className="flex items-center justify-center min-h-[44px] px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors touch-manipulation"
         >
           Reset
         </button>
       </div>
-      {/* Exploring network banner */}
+      {/* Exploring network banner - compact on mobile */}
       {exploringContact && onStopExploring && (
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2.5 px-3 py-2 rounded-lg bg-card/90 border border-primary/20 backdrop-blur-sm">
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-card/90 border border-primary/20 backdrop-blur-sm max-w-[calc(100%-6rem)]">
           <button
             type="button"
             onClick={onStopExploring}
-            className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="flex items-center justify-center min-w-[40px] min-h-[40px] rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors touch-manipulation"
             aria-label="Back to your network"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
-          <Eye className="w-4 h-4 text-primary" />
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-foreground">
+          <Eye className="w-4 h-4 text-primary shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-foreground truncate">
               {"Exploring "}{exploringContact.name}{"'s network"}
             </span>
             <span className="text-[10px] text-muted-foreground">

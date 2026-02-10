@@ -176,7 +176,7 @@ export function ConnectionGraph({ contacts, connections, selectedContactId, onSe
   }, [selectedContactId])
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full touch-none select-none overflow-hidden">
       <svg ref={svgRef} width={dimensions.width} height={dimensions.height} className="w-full h-full" />
     </div>
   )

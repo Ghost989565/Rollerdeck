@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { CONTACTS, CONNECTIONS, getConnectedContacts, getConnectionsForContact } from "@/lib/data"
 import type { Contact } from "@/lib/data"
 import { createClient } from "@/lib/supabase/client"
+import { Menu } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { NetworkGlobe } from "@/components/network-globe"
 import { ConnectionGraph } from "@/components/connection-graph"
@@ -12,6 +13,8 @@ import { MyProfilePanel } from "@/components/my-profile-panel"
 import { ContactList } from "@/components/contact-list"
 import { ShareCardDialog } from "@/components/share-card-dialog"
 import { GlimmeringIntro, useHasSeenIntro } from "@/components/glimmering-intro"
+import { useIsMobile } from "@/components/ui/use-mobile"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 
 const DEFAULT_USER_LOCATION = { lat: 34.0522, lng: -118.2437, name: "You" }
 
@@ -30,6 +33,8 @@ export default function RollerDeckPage() {
 }
 
 function RollerDeckApp() {
+  const isMobile = useIsMobile()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeView, setActiveView] = useState("globe")
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null)
   const [shareContact, setShareContact] = useState<Contact | null>(null)
@@ -126,24 +131,55 @@ function RollerDeckApp() {
   }, [])
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      <AppSidebar
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        contactCount={CONTACTS.length}
-        onSearch={setSearchQuery}
-        searchQuery={searchQuery}
-        showUserConnections={showUserConnections}
-        onShowUserConnectionsChange={setShowUserConnections}
-      />
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
+      {/* Sidebar: drawer on mobile, always visible on desktop */}
+      {!isMobile && (
+        <AppSidebar
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          contactCount={CONTACTS.length}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+          showUserConnections={showUserConnections}
+          onShowUserConnectionsChange={setShowUserConnections}
+        />
+      )}
+      {isMobile && (
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="left" className="w-[85vw] max-w-[280px] p-0 gap-0 border-r overflow-y-auto">
+            <AppSidebar
+              activeView={activeView}
+              onViewChange={(view) => {
+                handleViewChange(view)
+                setSidebarOpen(false)
+              }}
+              contactCount={CONTACTS.length}
+              onSearch={setSearchQuery}
+              searchQuery={searchQuery}
+              showUserConnections={showUserConnections}
+              onShowUserConnectionsChange={setShowUserConnections}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Main content */}
       <main className="flex flex-1 min-w-0 overflow-hidden">
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {/* Top bar */}
-          <header className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
+          <header className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-3 border-b border-border shrink-0">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] -ml-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer touch-manipulation"
+                aria-label="Open menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-foreground truncate">
                 {exploringContact
                   ? `${exploringContact.name}'s Network`
                   : activeView === "globe" ? "Network Map"
@@ -151,7 +187,7 @@ function RollerDeckApp() {
                   : "Connection Graph"
                 }
               </h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground truncate">
                 {exploringContact
                   ? `Viewing ${visibleContacts.length} connections`
                   : activeView === "globe" ? "Explore your network across the world"
@@ -161,17 +197,18 @@ function RollerDeckApp() {
               </p>
             </div>
             {(selectedContact || viewingMe) && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+              <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold shrink-0">
                   {viewingMe ? "You" : selectedContact?.initials}
                 </div>
-                <span className="text-xs font-medium text-primary">{viewingMe ? "You" : selectedContact?.name}</span>
+                <span className="text-xs font-medium text-primary truncate max-w-[120px] sm:max-w-none">{viewingMe ? "You" : selectedContact?.name}</span>
                 <button
                   type="button"
                   onClick={() => setSelectedContactId(null)}
-                  className="ml-1 text-primary/60 hover:text-primary cursor-pointer"
+                  className="flex items-center justify-center min-w-[36px] min-h-[36px] ml-0.5 rounded-md text-primary/60 hover:text-primary hover:bg-primary/10 cursor-pointer touch-manipulation"
+                  aria-label="Clear selection"
                 >
-                  <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+                  <svg className="w-4 h-4" viewBox="0 0 12 12" fill="none">
                     <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </button>

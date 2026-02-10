@@ -27,21 +27,21 @@ export function ContactDetailPanel({ contact, onClose, onSelectContact, onShareC
   const canExplore = contact.networkVisibility !== "private"
 
   return (
-    <div className="flex flex-col w-96 border-l border-border bg-card shrink-0 overflow-y-auto">
+    <div className="flex flex-col w-full md:w-96 border-l border-border bg-card shrink-0 overflow-y-auto fixed inset-0 z-40 md:relative md:z-auto md:inset-auto safe-area-panel">
       {/* Header */}
-      <div className="flex items-start justify-between p-5 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/15 text-primary font-semibold text-lg">
+      <div className="flex items-start justify-between p-4 sm:p-5 border-b border-border shrink-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/15 text-primary font-semibold text-lg shrink-0">
             {contact.initials}
           </div>
-          <div>
-            <h2 className="text-base font-semibold text-foreground">{contact.name}</h2>
-            <p className="text-sm text-muted-foreground">{contact.title}</p>
-            <p className="text-sm text-primary">{contact.company}</p>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground truncate">{contact.name}</h2>
+            <p className="text-sm text-muted-foreground truncate">{contact.title}</p>
+            <p className="text-sm text-primary truncate">{contact.company}</p>
           </div>
         </div>
-        <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-secondary text-muted-foreground cursor-pointer">
-          <X className="w-4 h-4" />
+        <button type="button" onClick={onClose} className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 -mr-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer touch-manipulation shrink-0" aria-label="Close">
+          <X className="w-5 h-5" />
         </button>
       </div>
 
