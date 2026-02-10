@@ -1,13 +1,13 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
@@ -120,5 +120,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
