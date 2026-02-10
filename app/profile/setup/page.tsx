@@ -65,6 +65,7 @@ export default function ProfileSetupPage() {
   const [country, setCountry] = useState("")
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
+  const [locationSource, setLocationSource] = useState<"gps" | "manual">("manual")
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -122,6 +123,9 @@ export default function ProfileSetupPage() {
           setCountry(finalProfile.country ?? "")
           setLat(finalProfile.lat != null && finalProfile.lat !== 0 ? finalProfile.lat : null)
           setLng(finalProfile.lng != null && finalProfile.lng !== 0 ? finalProfile.lng : null)
+          if (finalProfile.lat != null && finalProfile.lng != null && (finalProfile.lat !== 0 || finalProfile.lng !== 0)) {
+            setLocationSource("gps")
+          }
           if (finalProfile.avatar_url) setPhotoPreview(finalProfile.avatar_url)
         }
       } catch {
@@ -153,6 +157,7 @@ export default function ProfileSetupPage() {
       const longitude = position.coords.longitude
       setLat(latitude)
       setLng(longitude)
+      setLocationSource("gps")
       const { city: c, country: co } = await reverseGeocode(latitude, longitude)
       setCity(c)
       setCountry(co)
@@ -251,11 +256,9 @@ export default function ProfileSetupPage() {
 
       let resolvedLat = lat
       let resolvedLng = lng
-      const needsGeocode =
-        city.trim() &&
-        country.trim() &&
-        (resolvedLat == null || resolvedLng == null || (resolvedLat === 0 && resolvedLng === 0))
-      if (needsGeocode) {
+      const hasLocationText = city.trim() || country.trim()
+      const canUseGps = locationSource === "gps" && resolvedLat != null && resolvedLng != null
+      if (!canUseGps && hasLocationText) {
         const result = await forwardGeocode(city, country)
         if (result) {
           resolvedLat = result.lat
@@ -560,6 +563,9 @@ export default function ProfileSetupPage() {
                   value={city}
                   onChange={(e) => {
                     setCity(e.target.value)
+                    setLat(null)
+                    setLng(null)
+                    setLocationSource("manual")
                     if (e.target.value.trim() && country.trim()) setLocationError(null)
                   }}
                   placeholder="City"
@@ -576,6 +582,9 @@ export default function ProfileSetupPage() {
                   value={country}
                   onChange={(e) => {
                     setCountry(e.target.value)
+                    setLat(null)
+                    setLng(null)
+                    setLocationSource("manual")
                     if (city.trim() && e.target.value.trim()) setLocationError(null)
                   }}
                   placeholder="Country"
