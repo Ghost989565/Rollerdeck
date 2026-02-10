@@ -1,9 +1,16 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { CONTACTS, CONNECTIONS, getConnectedContacts, getConnectionsForContact } from "@/lib/data"
-import type { Contact } from "@/lib/data"
+import { CONTACTS, CONNECTIONS } from "@/lib/data"
+import type { Contact, Connection } from "@/lib/data"
 import { createClient } from "@/lib/supabase/client"
+import {
+  buildConnectionsFromContacts,
+  getAllCircles,
+  getAllTags,
+  getConnectedContacts,
+  mapProfilesToContacts,
+} from "@/lib/network-utils"
 import { Menu } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { NetworkGlobe } from "@/components/network-globe"
@@ -35,6 +42,8 @@ export default function RollerDeckPage() {
 function RollerDeckApp() {
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [contacts, setContacts] = useState<Contact[]>(CONTACTS)
+  const [connections, setConnections] = useState<Connection[]>(CONNECTIONS)
   const [activeView, setActiveView] = useState("globe")
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null)
   const [shareContact, setShareContact] = useState<Contact | null>(null)
@@ -42,6 +51,35 @@ function RollerDeckApp() {
   const [exploringContact, setExploringContact] = useState<Contact | null>(null)
   const [showUserConnections, setShowUserConnections] = useState(true)
   const [userLocation, setUserLocation] = useState(DEFAULT_USER_LOCATION)
+  const [contactDataSource, setContactDataSource] = useState<"demo" | "supabase">("demo")
+
+  useEffect(() => {
+    let mounted = true
+    async function loadContactsFromSupabase() {
+      try {
+        const supabase = createClient()
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("id, name, initials, title, company, email, city, country, lat, lng, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, network_visibility, created_at")
+          .order("created_at", { ascending: true })
+
+        if (!mounted || error || !profiles?.length) return
+
+        const mapped = mapProfilesToContacts(profiles)
+        if (!mapped.length) return
+
+        setContacts(mapped)
+        setConnections(buildConnectionsFromContacts(mapped))
+        setContactDataSource("supabase")
+      } catch {
+        // Keep demo data.
+      }
+    }
+    loadContactsFromSupabase()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -71,42 +109,50 @@ function RollerDeckApp() {
   }, [])
 
   const selectedContact = useMemo(
-    () => (selectedContactId && selectedContactId !== "me" ? CONTACTS.find((c) => c.id === selectedContactId) ?? null : null),
-    [selectedContactId]
+    () => (selectedContactId && selectedContactId !== "me" ? contacts.find((c) => c.id === selectedContactId) ?? null : null),
+    [selectedContactId, contacts]
   )
   const viewingMe = selectedContactId === "me"
+
+  useEffect(() => {
+    if (!selectedContactId || selectedContactId === "me") return
+    if (!contacts.some((c) => c.id === selectedContactId)) setSelectedContactId(null)
+  }, [selectedContactId, contacts])
 
   // When exploring someone's network, show their contacts + connections
   const visibleContacts = useMemo(() => {
     if (exploringContact) {
-      const theirConnections = getConnectedContacts(exploringContact.id)
+      const theirConnections = getConnectedContacts(contacts, connections, exploringContact.id)
       const ids = new Set([exploringContact.id, ...theirConnections.map((c) => c.id)])
-      return CONTACTS.filter((c) => ids.has(c.id))
+      return contacts.filter((c) => ids.has(c.id))
     }
-    if (!searchQuery) return CONTACTS
+    if (!searchQuery) return contacts
     const q = searchQuery.toLowerCase()
-    return CONTACTS.filter(
+    return contacts.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.company.toLowerCase().includes(q) ||
         c.bigIdea.title.toLowerCase().includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q))
     )
-  }, [searchQuery, exploringContact])
+  }, [searchQuery, exploringContact, contacts, connections])
 
   const visibleConnections = useMemo(() => {
     if (exploringContact) {
       const visibleIds = new Set(visibleContacts.map((c) => c.id))
-      return CONNECTIONS.filter((conn) => visibleIds.has(conn.from) && visibleIds.has(conn.to))
+      return connections.filter((conn) => visibleIds.has(conn.from) && visibleIds.has(conn.to))
     }
-    return CONNECTIONS
-  }, [exploringContact, visibleContacts])
+    return connections
+  }, [exploringContact, visibleContacts, connections])
 
   const highlightedIds = useMemo(() => {
     if (!selectedContactId) return []
     if (selectedContactId === "me") return visibleContacts.map((c) => c.id)
-    return getConnectedContacts(selectedContactId).map((c) => c.id)
-  }, [selectedContactId, visibleContacts])
+    return getConnectedContacts(contacts, visibleConnections, selectedContactId).map((c) => c.id)
+  }, [selectedContactId, visibleContacts, contacts, visibleConnections])
+
+  const availableTags = useMemo(() => getAllTags(visibleContacts), [visibleContacts])
+  const availableCircles = useMemo(() => getAllCircles(visibleContacts), [visibleContacts])
 
   const handleExploreNetwork = useCallback((contact: Contact) => {
     if (contact.networkVisibility === "private") return
@@ -137,7 +183,7 @@ function RollerDeckApp() {
         <AppSidebar
           activeView={activeView}
           onViewChange={handleViewChange}
-          contactCount={CONTACTS.length}
+          contactCount={contacts.length}
           onSearch={setSearchQuery}
           searchQuery={searchQuery}
           showUserConnections={showUserConnections}
@@ -153,7 +199,7 @@ function RollerDeckApp() {
                 handleViewChange(view)
                 setSidebarOpen(false)
               }}
-              contactCount={CONTACTS.length}
+              contactCount={contacts.length}
               onSearch={setSearchQuery}
               searchQuery={searchQuery}
               showUserConnections={showUserConnections}
@@ -192,8 +238,8 @@ function RollerDeckApp() {
                   ? `Viewing ${visibleContacts.length} connections`
                   : activeView === "globe" ? "Explore your network across the world"
                   : activeView === "contacts" ? `${visibleContacts.length} people in your network`
-                  : "See how your connections relate to each other"
-                }
+                  : "See how your connections relate to each other"}
+                {!exploringContact && contactDataSource === "supabase" ? " • Synced from Supabase" : ""}
               </p>
             </div>
             {(selectedContact || viewingMe) && (
@@ -236,6 +282,8 @@ function RollerDeckApp() {
                 contacts={visibleContacts}
                 selectedContactId={selectedContactId}
                 onSelectContact={handleSelectContact}
+                availableTags={availableTags}
+                availableCircles={availableCircles}
               />
             )}
             {activeView === "graph" && (
@@ -261,6 +309,8 @@ function RollerDeckApp() {
         {selectedContact && (
           <ContactDetailPanel
             contact={selectedContact}
+            contacts={contacts}
+            connections={visibleConnections}
             onClose={() => setSelectedContactId(null)}
             onSelectContact={handleSelectContact}
             onShareContact={setShareContact}
@@ -273,6 +323,7 @@ function RollerDeckApp() {
       {shareContact && (
         <ShareCardDialog
           contact={shareContact}
+          recipientsPool={contacts}
           onClose={() => setShareContact(null)}
         />
       )}

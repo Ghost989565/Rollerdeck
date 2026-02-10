@@ -3,24 +3,24 @@
 import { useState, useMemo } from "react"
 import { X, Send, Lightbulb, Target, Sparkles, Check, Copy } from "lucide-react"
 import type { Contact } from "@/lib/data"
-import { CONTACTS } from "@/lib/data"
 
 interface ShareCardDialogProps {
   contact: Contact
+  recipientsPool: Contact[]
   onClose: () => void
 }
 
-export function ShareCardDialog({ contact, onClose }: ShareCardDialogProps) {
+export function ShareCardDialog({ contact, recipientsPool, onClose }: ShareCardDialogProps) {
   const [selectedRecipient, setSelectedRecipient] = useState<Contact | null>(null)
   const [search, setSearch] = useState("")
   const [copied, setCopied] = useState(false)
 
   const recipients = useMemo(
     () =>
-      CONTACTS.filter(
+      recipientsPool.filter(
         (c) => c.id !== contact.id && c.name.toLowerCase().includes(search.toLowerCase())
       ),
-    [contact.id, search]
+    [contact.id, recipientsPool, search]
   )
 
   const handleCopy = () => {

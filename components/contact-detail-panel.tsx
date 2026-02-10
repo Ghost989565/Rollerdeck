@@ -1,11 +1,13 @@
 "use client"
 
 import { X, MapPin, Lightbulb, Target, Share2, ChevronRight, Globe, Lock, Users, Eye, Network, User } from "lucide-react"
-import type { Contact } from "@/lib/data"
-import { getIntroductionChain, getConnectedContacts, getConnectionDetailsForContact } from "@/lib/data"
+import type { Contact, Connection } from "@/lib/data"
+import { getIntroductionChain, getConnectedContacts, getConnectionDetailsForContact } from "@/lib/network-utils"
 
 interface ContactDetailPanelProps {
   contact: Contact
+  contacts: Contact[]
+  connections: Connection[]
   onClose: () => void
   onSelectContact: (id: string) => void
   onShareContact: (contact: Contact) => void
@@ -18,10 +20,18 @@ const visibilityConfig = {
   private: { label: "Private Network", icon: Lock, color: "text-red-400", bg: "bg-red-400/10 border-red-400/20" },
 }
 
-export function ContactDetailPanel({ contact, onClose, onSelectContact, onShareContact, onExploreNetwork }: ContactDetailPanelProps) {
-  const introChain = getIntroductionChain(contact.id)
-  const connectedContacts = getConnectedContacts(contact.id)
-  const connectionDetails = getConnectionDetailsForContact(contact.id)
+export function ContactDetailPanel({
+  contact,
+  contacts,
+  connections,
+  onClose,
+  onSelectContact,
+  onShareContact,
+  onExploreNetwork,
+}: ContactDetailPanelProps) {
+  const introChain = getIntroductionChain(contacts, contact.id)
+  const connectedContacts = getConnectedContacts(contacts, connections, contact.id)
+  const connectionDetails = getConnectionDetailsForContact(contacts, connections, contact.id)
   const vis = visibilityConfig[contact.networkVisibility]
   const VisIcon = vis.icon
   const canExplore = contact.networkVisibility !== "private"

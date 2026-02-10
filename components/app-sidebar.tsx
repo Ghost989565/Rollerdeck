@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Globe, Users, Network, Search, Sparkles, Settings, Lock, ChevronDown, ChevronUp, User } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Globe, Users, Network, Search, Sparkles, Settings, Lock, ChevronDown, ChevronUp, User, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
+import { createClient } from "@/lib/supabase/client"
 
 interface AppSidebarProps {
   activeView: string
@@ -29,8 +31,69 @@ const visibilityOptions = [
 ]
 
 export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, searchQuery, showUserConnections = true, onShowUserConnectionsChange }: AppSidebarProps) {
+  const router = useRouter()
   const [showSettings, setShowSettings] = useState(false)
   const [myVisibility, setMyVisibility] = useState<"public" | "friends" | "private">("public")
+  const [savingVisibility, setSavingVisibility] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    async function loadVisibility() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || !mounted) return
+        const { data } = await supabase
+          .from("profiles")
+          .select("network_visibility")
+          .eq("id", user.id)
+          .single()
+        if (!mounted || !data?.network_visibility) return
+        if (data.network_visibility === "public" || data.network_visibility === "friends" || data.network_visibility === "private") {
+          setMyVisibility(data.network_visibility)
+        }
+      } catch {
+        // Keep local default if Supabase is unavailable.
+      }
+    }
+    loadVisibility()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  async function handleVisibilityChange(value: "public" | "friends" | "private") {
+    setMyVisibility(value)
+    setSavingVisibility(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase
+        .from("profiles")
+        .update({ network_visibility: value, updated_at: new Date().toISOString() })
+        .eq("id", user.id)
+    } catch {
+      // Keep local selection even if request fails.
+    } finally {
+      setSavingVisibility(false)
+    }
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch {
+      // Continue to login route even if Supabase is not configured.
+    } finally {
+      router.push("/auth/login")
+      router.refresh()
+      setSigningOut(false)
+    }
+  }
 
   return (
     <aside className="flex flex-col w-60 border-r border-border bg-card shrink-0">
@@ -121,6 +184,15 @@ export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, s
               <User className="w-3.5 h-3.5" />
               Edit profile
             </Link>
+            <button
+              type="button"
+              disabled={signingOut}
+              onClick={handleSignOut}
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors mb-2 disabled:opacity-60 disabled:cursor-not-allowed w-full"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {signingOut ? "Signing out..." : "Sign out"}
+            </button>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2 px-0.5">
               Network Visibility
             </p>
@@ -132,9 +204,10 @@ export function AppSidebar({ activeView, onViewChange, contactCount, onSearch, s
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setMyVisibility(option.value)}
+                    onClick={() => handleVisibilityChange(option.value)}
+                    disabled={savingVisibility}
                     className={cn(
-                      "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left cursor-pointer transition-colors",
+                      "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
                       isSelected
                         ? "bg-primary/10 border border-primary/20"
                         : "hover:bg-secondary border border-transparent"
