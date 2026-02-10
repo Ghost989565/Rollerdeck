@@ -5,6 +5,7 @@ import { Check, Loader2, Search, Send, UserPlus, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Contact, Connection } from "@/lib/data"
 import type { ConnectionRequest } from "@/lib/network-utils"
+const missingUsernameColumn = (message?: string) => (message || "").includes("username")
 
 interface SearchProfile {
   id: string
@@ -91,15 +92,27 @@ export function AddConnectionDialog({
         .in("network_visibility", ["public", "friends"])
         .or(`name.ilike.%${q}%,username.ilike.%${q}%`)
         .limit(20)
-
-      if (publicError) throw publicError
+      let finalMatches = publicMatches
+      if (publicError && missingUsernameColumn(publicError.message)) {
+        const { data: fallbackMatches, error: fallbackError } = await supabase
+          .from("profiles")
+          .select("id, name, initials, title, company, city, country, network_visibility")
+          .neq("id", currentUserId)
+          .in("network_visibility", ["public", "friends"])
+          .ilike("name", `%${q}%`)
+          .limit(20)
+        if (fallbackError) throw fallbackError
+        finalMatches = fallbackMatches
+      } else if (publicError) {
+        throw publicError
+      }
 
       const merged = new Map<string, SearchProfile>()
-      ;(publicMatches ?? []).forEach((row) => {
+      ;(finalMatches ?? []).forEach((row) => {
         merged.set(row.id, {
           id: row.id,
           name: row.name ?? "Unnamed",
-          username: row.username ?? "",
+          username: "username" in row ? (row.username ?? "") : "",
           initials: row.initials ?? "U",
           title: row.title ?? "Member",
           company: row.company ?? "RollerDeck",

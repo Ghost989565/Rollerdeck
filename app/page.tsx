@@ -26,6 +26,7 @@ import { useIsMobile } from "@/components/ui/use-mobile"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 
 const DEFAULT_USER_LOCATION = { lat: 34.0522, lng: -118.2437, name: "You" }
+const missingUsernameColumn = (message?: string) => (message || "").includes("username")
 
 export default function RollerDeckPage() {
   const { hasSeen, markAsSeen } = useHasSeenIntro()
@@ -77,11 +78,22 @@ function RollerDeckApp() {
         .from("profiles")
         .select("id, name, username, initials, title, company, email, city, country, lat, lng, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, network_visibility, created_at")
         .order("created_at", { ascending: true })
-      if (profilesError) throw profilesError
+      let finalProfiles = profiles
+      if (profilesError && missingUsernameColumn(profilesError.message)) {
+        const { data: fallbackProfiles, error: fallbackError } = await supabase
+          .from("profiles")
+          .select("id, name, initials, title, company, email, city, country, lat, lng, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, network_visibility, created_at")
+          .order("created_at", { ascending: true })
+        if (fallbackError) throw fallbackError
+        finalProfiles = fallbackProfiles
+      } else if (profilesError) {
+        throw profilesError
+      }
 
-      const mappedProfiles = mapProfilesToContacts(profiles ?? [])
-      if (mappedProfiles.length) {
-        setContacts(mappedProfiles)
+      const mappedProfiles = mapProfilesToContacts(finalProfiles ?? [])
+      const networkContacts = mappedProfiles.filter((c) => c.id !== user.id)
+      if (networkContacts.length) {
+        setContacts(networkContacts)
         setContactDataSource("supabase")
       }
 
@@ -102,8 +114,8 @@ function RollerDeckApp() {
 
       if (mappedConnections.length) {
         setConnections(mappedConnections)
-      } else if (mappedProfiles.length) {
-        setConnections(buildConnectionsFromContacts(mappedProfiles))
+      } else if (networkContacts.length) {
+        setConnections(buildConnectionsFromContacts(networkContacts))
       }
 
       const { data: requests, error: requestError } = await supabase

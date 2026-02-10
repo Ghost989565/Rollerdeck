@@ -11,6 +11,7 @@ import { Camera, Link2, Loader2, MapPin, Globe, Lightbulb, Target } from "lucide
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const MAX_SIZE_MB = 2
+const missingUsernameColumn = (message?: string) => (message || "").includes("username")
 
 async function reverseGeocode(lat: number, lng: number): Promise<{ city: string; country: string }> {
   const res = await fetch(
@@ -29,6 +30,23 @@ async function reverseGeocode(lat: number, lng: number): Promise<{ city: string;
     ""
   const country = address.country || ""
   return { city, country }
+}
+
+async function forwardGeocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
+  const query = [city.trim(), country.trim()].filter(Boolean).join(", ")
+  if (!query) return null
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+    { headers: { "User-Agent": "RollerDeck/1.0 (contact@example.com)" } }
+  )
+  if (!res.ok) return null
+  const data = (await res.json()) as Array<{ lat: string; lon: string }>
+  if (!data.length) return null
+  const first = data[0]
+  const lat = Number(first.lat)
+  const lng = Number(first.lon)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
 }
 
 export default function ProfileSetupPage() {
@@ -75,27 +93,36 @@ export default function ProfileSetupPage() {
           if (!user) router.replace("/auth/login")
           return
         }
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("name, username, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, linkedin_url, avatar_url, city, country, lat, lng")
           .eq("id", user.id)
           .single()
-        if (mounted && profile) {
-          setName(profile.name ?? "")
-          setUsername(profile.username ?? "")
-          setBio(profile.bio ?? "")
-          setBigIdeaTitle(profile.big_idea_title ?? "")
-          setBigIdeaDescription(profile.big_idea_description ?? "")
-          setBigIdeaGoals(profile.big_idea_goals ?? "")
-          setValueProposition(profile.value_proposition ?? "")
-          setTags(profile.tags ?? "")
-          setLinkedinUrl(profile.linkedin_url ?? "")
-          setAvatarUrl(profile.avatar_url ?? "")
-          setCity(profile.city ?? "")
-          setCountry(profile.country ?? "")
-          setLat(profile.lat != null && profile.lat !== 0 ? profile.lat : null)
-          setLng(profile.lng != null && profile.lng !== 0 ? profile.lng : null)
-          if (profile.avatar_url) setPhotoPreview(profile.avatar_url)
+        let finalProfile = profile
+        if (profileError && missingUsernameColumn(profileError.message)) {
+          const { data: fallbackProfile } = await supabase
+            .from("profiles")
+            .select("name, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, linkedin_url, avatar_url, city, country, lat, lng")
+            .eq("id", user.id)
+            .single()
+          finalProfile = fallbackProfile
+        }
+        if (mounted && finalProfile) {
+          setName(finalProfile.name ?? "")
+          setUsername("username" in finalProfile ? (finalProfile.username ?? "") : "")
+          setBio(finalProfile.bio ?? "")
+          setBigIdeaTitle(finalProfile.big_idea_title ?? "")
+          setBigIdeaDescription(finalProfile.big_idea_description ?? "")
+          setBigIdeaGoals(finalProfile.big_idea_goals ?? "")
+          setValueProposition(finalProfile.value_proposition ?? "")
+          setTags(finalProfile.tags ?? "")
+          setLinkedinUrl(finalProfile.linkedin_url ?? "")
+          setAvatarUrl(finalProfile.avatar_url ?? "")
+          setCity(finalProfile.city ?? "")
+          setCountry(finalProfile.country ?? "")
+          setLat(finalProfile.lat != null && finalProfile.lat !== 0 ? finalProfile.lat : null)
+          setLng(finalProfile.lng != null && finalProfile.lng !== 0 ? finalProfile.lng : null)
+          if (finalProfile.avatar_url) setPhotoPreview(finalProfile.avatar_url)
         }
       } catch {
         if (mounted) setError("Could not load profile.")
@@ -222,30 +249,54 @@ export default function ProfileSetupPage() {
         return
       }
 
-      const { error: updateError } = await supabase
+      let resolvedLat = lat
+      let resolvedLng = lng
+      const needsGeocode =
+        city.trim() &&
+        country.trim() &&
+        (resolvedLat == null || resolvedLng == null || (resolvedLat === 0 && resolvedLng === 0))
+      if (needsGeocode) {
+        const result = await forwardGeocode(city, country)
+        if (result) {
+          resolvedLat = result.lat
+          resolvedLng = result.lng
+          setLat(result.lat)
+          setLng(result.lng)
+        }
+      }
+
+      const payload = {
+        id: user.id,
+        name: name.trim() || "",
+        username: normalizedUsername || "",
+        initials: initials || "U",
+        bio: bio.trim() || "",
+        big_idea_title: bigIdeaTitle.trim() || "",
+        big_idea_description: bigIdeaDescription.trim() || "",
+        big_idea_goals: bigIdeaGoals.trim() || "",
+        value_proposition: valueProposition.trim() || "",
+        tags: tags.trim() || "",
+        linkedin_url: linkedinUrl.trim() || "",
+        avatar_url: finalAvatarUrl,
+        city: city.trim() || "",
+        country: country.trim() || "",
+        lat: resolvedLat ?? 0,
+        lng: resolvedLng ?? 0,
+        updated_at: new Date().toISOString(),
+      }
+
+      let { error: updateError } = await supabase
         .from("profiles")
-        .upsert(
-          {
-            id: user.id,
-            name: name.trim() || "",
-            username: normalizedUsername || "",
-            initials: initials || "U",
-            bio: bio.trim() || "",
-            big_idea_title: bigIdeaTitle.trim() || "",
-            big_idea_description: bigIdeaDescription.trim() || "",
-            big_idea_goals: bigIdeaGoals.trim() || "",
-            value_proposition: valueProposition.trim() || "",
-            tags: tags.trim() || "",
-            linkedin_url: linkedinUrl.trim() || "",
-            avatar_url: finalAvatarUrl,
-            city: city.trim() || "",
-            country: country.trim() || "",
-            lat: lat ?? 0,
-            lng: lng ?? 0,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id" }
-        )
+        .upsert(payload, { onConflict: "id" })
+
+      if (updateError && missingUsernameColumn(updateError.message)) {
+        // Database has not run username migration yet; save all other fields.
+        const { username: _discard, ...payloadWithoutUsername } = payload
+        const fallback = await supabase
+          .from("profiles")
+          .upsert(payloadWithoutUsername, { onConflict: "id" })
+        updateError = fallback.error
+      }
 
       if (updateError) {
         setError(updateError.message || "Could not save profile.")

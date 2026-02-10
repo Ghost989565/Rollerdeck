@@ -3,7 +3,7 @@ import type { Contact, Connection } from "@/lib/data"
 interface ProfileRow {
   id: string
   name: string | null
-  username: string | null
+  username?: string | null
   initials: string | null
   title: string | null
   company: string | null

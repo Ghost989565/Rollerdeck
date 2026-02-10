@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { X, MapPin, Share2, ChevronRight, Network, User, Link2, Loader2, Lightbulb, Target } from "lucide-react"
 import type { Contact } from "@/lib/data"
+const missingUsernameColumn = (message?: string) => (message || "").includes("username")
 
 interface MyProfilePanelProps {
   onClose: () => void
@@ -40,26 +41,35 @@ export function MyProfilePanel({ onClose, onSelectContact, contacts }: MyProfile
           setLoading(false)
           return
         }
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
           .select("name, username, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, avatar_url, city, country, linkedin_url")
           .eq("id", user.id)
           .single()
-        if (mounted && data) {
+        let profileData = data
+        if (error && missingUsernameColumn(error.message)) {
+          const { data: fallbackData } = await supabase
+            .from("profiles")
+            .select("name, initials, bio, big_idea_title, big_idea_description, big_idea_goals, value_proposition, tags, avatar_url, city, country, linkedin_url")
+            .eq("id", user.id)
+            .single()
+          profileData = fallbackData
+        }
+        if (mounted && profileData) {
           setProfile({
-            name: data.name ?? "You",
-            username: data.username ?? "",
-            initials: data.initials ?? "U",
-            bio: data.bio ?? "",
-            big_idea_title: data.big_idea_title ?? "",
-            big_idea_description: data.big_idea_description ?? "",
-            big_idea_goals: data.big_idea_goals ?? "",
-            value_proposition: data.value_proposition ?? "",
-            tags: data.tags ?? "",
-            avatar_url: data.avatar_url ?? "",
-            city: data.city ?? "",
-            country: data.country ?? "",
-            linkedin_url: data.linkedin_url ?? "",
+            name: profileData.name ?? "You",
+            username: "username" in profileData ? (profileData.username ?? "") : "",
+            initials: profileData.initials ?? "U",
+            bio: profileData.bio ?? "",
+            big_idea_title: profileData.big_idea_title ?? "",
+            big_idea_description: profileData.big_idea_description ?? "",
+            big_idea_goals: profileData.big_idea_goals ?? "",
+            value_proposition: profileData.value_proposition ?? "",
+            tags: profileData.tags ?? "",
+            avatar_url: profileData.avatar_url ?? "",
+            city: profileData.city ?? "",
+            country: profileData.country ?? "",
+            linkedin_url: profileData.linkedin_url ?? "",
           })
         } else if (mounted) {
           setProfile({

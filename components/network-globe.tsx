@@ -10,6 +10,10 @@ import type { Contact, Connection } from "@/lib/data"
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 4
 
+function hasValidLocation(lat: number, lng: number) {
+  return Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+}
+
 interface GeoFeature {
   type: string
   geometry: any
@@ -263,6 +267,8 @@ export function NetworkGlobe({
       const fromContact = contacts.find((c) => c.id === conn.from)
       const toContact = contacts.find((c) => c.id === conn.to)
       if (!fromContact || !toContact) return
+      if (!hasValidLocation(fromContact.location.lat, fromContact.location.lng)) return
+      if (!hasValidLocation(toContact.location.lat, toContact.location.lng)) return
 
       const source: [number, number] = [fromContact.location.lng, fromContact.location.lat]
       const target: [number, number] = [toContact.location.lng, toContact.location.lat]
@@ -309,6 +315,7 @@ export function NetworkGlobe({
             ? contacts.filter((c) => c.id === selectedContactId)
             : contacts
         contactsToDraw.forEach((contact) => {
+          if (!hasValidLocation(contact.location.lat, contact.location.lng)) return
           const target: [number, number] = [contact.location.lng, contact.location.lat]
           const targetProjected = projection(target)
           if (!targetProjected) return
@@ -339,6 +346,7 @@ export function NetworkGlobe({
     // Contact nodes
     const nodeLayer = svg.append("g").attr("class", "nodes")
     contacts.forEach((contact) => {
+      if (!hasValidLocation(contact.location.lat, contact.location.lng)) return
       const coords: [number, number] = [contact.location.lng, contact.location.lat]
       const projected = projection(coords)
       if (!projected) return

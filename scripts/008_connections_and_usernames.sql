@@ -7,40 +7,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_username_unique_idx
   ON public.profiles (LOWER(username))
   WHERE username <> '';
 
--- Refresh profile read policy:
--- - own profile
--- - public/friends profiles
--- - connected users
--- - users with pending requests to/from you
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Authenticated users can read visible profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Authenticated users can read discoverable profiles" ON public.profiles;
-
-CREATE POLICY "Authenticated users can read discoverable profiles"
-ON public.profiles
-FOR SELECT
-TO authenticated
-USING (
-  id = auth.uid()
-  OR network_visibility IN ('public', 'friends')
-  OR EXISTS (
-    SELECT 1
-    FROM public.profile_connections pc
-    WHERE (pc.user_a = id AND pc.user_b = auth.uid())
-       OR (pc.user_b = id AND pc.user_a = auth.uid())
-  )
-  OR EXISTS (
-    SELECT 1
-    FROM public.connection_requests cr
-    WHERE cr.status = 'pending'
-      AND (
-        (cr.from_user_id = id AND cr.to_user_id = auth.uid())
-        OR (cr.to_user_id = id AND cr.from_user_id = auth.uid())
-      )
-  )
-);
-
 CREATE TABLE IF NOT EXISTS public.profile_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_a UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -105,6 +71,40 @@ FOR UPDATE
 TO authenticated
 USING (from_user_id = auth.uid() OR to_user_id = auth.uid())
 WITH CHECK (from_user_id = auth.uid() OR to_user_id = auth.uid());
+
+-- Refresh profile read policy:
+-- - own profile
+-- - public/friends profiles
+-- - connected users
+-- - users with pending requests to/from you
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can read visible profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Authenticated users can read discoverable profiles" ON public.profiles;
+
+CREATE POLICY "Authenticated users can read discoverable profiles"
+ON public.profiles
+FOR SELECT
+TO authenticated
+USING (
+  id = auth.uid()
+  OR network_visibility IN ('public', 'friends')
+  OR EXISTS (
+    SELECT 1
+    FROM public.profile_connections pc
+    WHERE (pc.user_a = id AND pc.user_b = auth.uid())
+       OR (pc.user_b = id AND pc.user_a = auth.uid())
+  )
+  OR EXISTS (
+    SELECT 1
+    FROM public.connection_requests cr
+    WHERE cr.status = 'pending'
+      AND (
+        (cr.from_user_id = id AND cr.to_user_id = auth.uid())
+        OR (cr.to_user_id = id AND cr.from_user_id = auth.uid())
+      )
+  )
+);
 
 -- Security-definer lookup for exact username search (supports private profiles by handle).
 CREATE OR REPLACE FUNCTION public.find_profile_by_username(p_username TEXT)
